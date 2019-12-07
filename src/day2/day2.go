@@ -54,6 +54,7 @@ Once you have a working computer, the first step is to restore the gravity assis
 Your puzzle answer was 2782414.
 
 The first half of this puzzle is complete! It provides one gold star: *
+
 --- Part Two ---
 
 "Good, the new computer seems to be working correctly! Keep it nearby during this mission - you'll probably use it again. Real Intcode computers support many more features than your new one, but we'll let you know what they are as you need them."
@@ -73,8 +74,6 @@ The inputs should still be provided to the program by replacing the values at ad
 Once the program has halted, its output is available at address 0, also just like before. Each time you try a pair of inputs, make sure you first reset the computer's memory to the values in the program (your puzzle input) - in other words, don't reuse memory from a previous attempt.
 
 Find the input noun and verb that cause the program to produce the output 19690720. What is 100 * noun + verb? (For example, if noun=12 and verb=2, the answer would be 1202.)
-
-Your puzzle answer was 2782414.
 
 That's the right answer! You are one gold star closer to rescuing Santa.
 */
@@ -101,11 +100,15 @@ func main() {
 	}
 	instructions[1] = 12
 	instructions[2] = 2
-	fmt.Printf("Answer 1: %d\n", Exec(instructions)[0])
+	fmt.Printf("Answer 1: %d\n", ExecAll(instructions)[0])
+	noun, verb := FindInputsOf(19690720, instructions)
+	fmt.Printf("Answer 2: %d\n", Output(noun, verb))
 }
 
-func Exec(instructions []int) []int {
-	return execOpcode(0, instructions)
+func ExecAll(instructions []int) []int {
+	ins := make([]int, len(instructions))
+	copy(ins, instructions)
+	return execOpcode(0, ins)
 }
 
 func execOpcode(pos int, instructions []int) []int {
@@ -125,4 +128,25 @@ func execOpcode(pos int, instructions []int) []int {
 	default:
 		return instructions
 	}
+}
+
+func Output(noun int, verb int) int {
+	return 100*noun + verb
+}
+
+func FindInputsOf(value int, instructions []int) (int, int) {
+	var a, b int
+	for ; a <= 99; a++ {
+		for b = 0; b <= 99; b++ {
+			ins := make([]int, len(instructions))
+			copy(ins, instructions)
+			ins[1] = a
+			ins[2] = b
+			r := execOpcode(0, ins)
+			if r[0] == value {
+				return a, b
+			}
+		}
+	}
+	return a, b
 }
