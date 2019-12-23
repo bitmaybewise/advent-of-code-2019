@@ -37,6 +37,9 @@ How many different passwords within the range given in your puzzle input meet al
 
 Your puzzle input is still 357253-892942.
 
+Your puzzle answer was 324.
+
+That's the right answer! You are one gold star closer to rescuing Santa.
 */
 
 package main
@@ -50,7 +53,8 @@ import (
 const input = "357253-892942"
 
 func main() {
-	fmt.Printf("day 4 puzzle 1: %d\n", CountDifferentPasswords(input))
+	fmt.Printf("day 4 puzzle 1: %d\n", CountDifferentPasswords(input, MeetCriteria))
+	fmt.Printf("day 4 puzzle 2: %d\n", CountDifferentPasswords(input, MeetCriteriaNoAdjacentGroups))
 }
 
 func MeetCriteria(digits []int) bool {
@@ -69,6 +73,24 @@ func MeetCriteria(digits []int) bool {
 	return hasDouble
 }
 
+func MeetCriteriaNoAdjacentGroups(digits []int) bool {
+	counter := make(map[int]int)
+	size := len(digits) - 1
+	for i := 0; i < size; i++ {
+		if digits[i] > digits[i+1] {
+			return false
+		}
+		counter[digits[i]]++
+	}
+	counter[digits[size]]++
+	for _, v := range counter {
+		if v == 2 {
+			return true
+		}
+	}
+	return false
+}
+
 func intToArray(i int) []int {
 	var r []int
 	s := strconv.Itoa(i)
@@ -79,14 +101,14 @@ func intToArray(i int) []int {
 	return r
 }
 
-func CountDifferentPasswords(givenRange string) int {
+func CountDifferentPasswords(givenRange string, criteria func([]int) bool) int {
 	values := strings.Split(givenRange, "-")
 	start, _ := strconv.Atoi(values[0])
 	finish, _ := strconv.Atoi(values[1])
 	var count int
 	for start <= finish {
 		digits := intToArray(start)
-		if MeetCriteria(digits) {
+		if criteria(digits) {
 			count++
 		}
 		start++
