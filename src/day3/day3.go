@@ -79,6 +79,9 @@ Here are the best steps for the extra examples from above:
 
 What is the fewest combined steps the wires must take to reach an intersection?
 
+Your puzzle answer was 16524.
+
+That's the right answer! You are one gold star closer to rescuing Santa.
 */
 
 package main
@@ -92,22 +95,28 @@ import (
 )
 
 type Coord struct {
-	x, y int
+	x, y, steps    int
+	isIntersection bool
 }
 
 func (coord Coord) String() string {
 	return fmt.Sprintf("%d,%d", coord.x, coord.y)
 }
 
-func initCoord() Coord {
-	return Coord{0, 0}
+func (coord Coord) Eq(o *Coord) bool {
+	return coord.x == o.x && coord.y == o.y
 }
 
-func strToCoord(s string) Coord {
+func initCoord() Coord {
+	return Coord{0, 0, 0, false}
+}
+
+func strToIntersection(s string) Coord {
 	var coord Coord
 	v := strings.Split(s, ",")
 	coord.x, _ = strconv.Atoi(v[0])
 	coord.y, _ = strconv.Atoi(v[1])
+	coord.isIntersection = true
 	return coord
 }
 
@@ -115,7 +124,9 @@ func main() {
 	input, _ := ioutil.ReadFile("input")
 	lines := strings.Split(string(input), "\n")
 	distance := ClosestIntersectionDistance(lines[0], lines[1])
+	bestStep := BestSteps(lines[0], lines[1])
 	fmt.Printf("day 3 puzzle 1: %d\n", distance)
+	fmt.Printf("day 3 puzzle 2: %d\n", bestStep)
 }
 
 func ManhattanDistance(p1 Coord, p2 Coord) int {
@@ -138,12 +149,44 @@ func ParseMove(mov string) *Coord {
 	case direction == "L":
 		x -= value
 	}
-	c := Coord{x, y}
+	c := Coord{x, y, 0, false}
 	return &c
 }
 
-func visit(movement string, coord *Coord, visits map[string]bool) {
-	moveP := ParseMove(movement)
+func ParseMovements(movements string) []Coord {
+	var coords []Coord
+	for _, move := range strings.Split(movements, ",") {
+		coords = append(coords, *ParseMove(move))
+	}
+	return coords
+}
+
+type Visits = map[string]bool
+
+func makeVisits(movements []Coord) Visits {
+	vs := make(Visits)
+	ignoreIntersection := initCoord()
+	current := initCoord()
+	for _, move := range movements {
+		visit(&move, &current, vs, &ignoreIntersection)
+	}
+	return vs
+}
+
+func intersections(visits1 Visits, visits2 Visits) []Coord {
+	var intersections []Coord
+	for k := range visits1 {
+		if visits2[k] {
+			coord := strToIntersection(k)
+			intersections = append(intersections, coord)
+		}
+	}
+	return intersections
+}
+
+type Stop = bool
+
+func visit(moveP *Coord, coord *Coord, visits Visits, intersection *Coord) Stop {
 	i := moveP.x
 	for i != 0 {
 		if moveP.x > 0 {
@@ -154,6 +197,10 @@ func visit(movement string, coord *Coord, visits map[string]bool) {
 			coord.x--
 		}
 		visits[coord.String()] = true
+		coord.steps++
+		if intersection.isIntersection && coord.Eq(intersection) {
+			return true
+		}
 	}
 	i = moveP.y
 	for i != 0 {
@@ -165,37 +212,53 @@ func visit(movement string, coord *Coord, visits map[string]bool) {
 			coord.y--
 		}
 		visits[coord.String()] = true
+		coord.steps++
+		if intersection.isIntersection && coord.Eq(intersection) {
+			return true
+		}
 	}
+	return false
 }
 
 func ClosestIntersectionDistance(movements1 string, movements2 string) int {
-	visits1 := make(map[string]bool)
-	visits2 := make(map[string]bool)
-
-	current := initCoord()
-	for _, move := range strings.Split(movements1, ",") {
-		visit(move, &current, visits1)
-	}
-	current = initCoord()
-	for _, move := range strings.Split(movements2, ",") {
-		visit(move, &current, visits2)
-	}
-
-	var intersections []string
-	for k := range visits1 {
-		if visits2[k] {
-			intersections = append(intersections, k)
-		}
-	}
-
+	movs1 := ParseMovements(movements1)
+	movs2 := ParseMovements(movements2)
+	visits1, visits2 := makeVisits(movs1), makeVisits(movs2)
+	intersections := intersections(visits1, visits2)
 	closestDistance := math.MaxUint16
-	for _, pos := range intersections {
-		coord := strToCoord(pos)
+	for _, coord := range intersections {
 		distance := ManhattanDistance(coord, initCoord())
 		if closestDistance > distance {
 			closestDistance = distance
 		}
 	}
-
 	return closestDistance
+}
+
+func countSteps(movements []Coord, visits Visits, intersection *Coord) int {
+	current := initCoord()
+	for _, move := range movements {
+		stop := visit(&move, &current, visits, intersection)
+		if stop {
+			break
+		}
+	}
+	return current.steps
+}
+
+func BestSteps(movements1 string, movements2 string) int {
+	movs1 := ParseMovements(movements1)
+	movs2 := ParseMovements(movements2)
+	visits1, visits2 := makeVisits(movs1), makeVisits(movs2)
+	intersections := intersections(visits1, visits2)
+	best := math.MaxInt16
+	for _, coord := range intersections {
+		steps1 := countSteps(movs1, visits1, &coord)
+		steps2 := countSteps(movs2, visits2, &coord)
+		steps := steps1 + steps2
+		if best > steps {
+			best = steps
+		}
+	}
+	return best
 }
