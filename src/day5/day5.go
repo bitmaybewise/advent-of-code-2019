@@ -1,5 +1,39 @@
 /*
-de, which also works like it did before - 99 is written to address 4.
+--- Day 5: Sunny with a Chance of Asteroids ---
+
+You're starting to sweat as the ship makes its way toward Mercury. The Elves suggest that you get the air conditioner working by upgrading your ship computer to support the Thermal Environment Supervision Terminal.
+
+The Thermal Environment Supervision Terminal (TEST) starts by running a diagnostic program (your puzzle input). The TEST diagnostic program will run on your existing Intcode computer after a few modifications:
+
+First, you'll need to add two new instructions:
+
+    Opcode 3 takes a single integer as input and saves it to the position given by its only parameter. For example, the instruction 3,50 would take an input value and store it at address 50.
+    Opcode 4 outputs the value of its only parameter. For example, the instruction 4,50 would output the value at address 50.
+
+Programs that use these instructions will come with documentation that explains what should be connected to the input and output. The program 3,0,4,0,99 outputs whatever it gets as input, then halts.
+
+Second, you'll need to add support for parameter modes:
+
+Each parameter of an instruction is handled based on its parameter mode. Right now, your ship computer already understands parameter mode 0, position mode, which causes the parameter to be interpreted as a position - if the parameter is 50, its value is the value stored at address 50 in memory. Until now, all parameters have been in position mode.
+
+Now, your ship computer will also need to handle parameters in mode 1, immediate mode. In immediate mode, a parameter is interpreted as a value - if the parameter is 50, its value is simply 50.
+
+Parameter modes are stored in the same value as the instruction's opcode. The opcode is a two-digit number based only on the ones and tens digit of the value, that is, the opcode is the rightmost two digits of the first value in an instruction. Parameter modes are single digits, one per parameter, read right-to-left from the opcode: the first parameter's mode is in the hundreds digit, the second parameter's mode is in the thousands digit, the third parameter's mode is in the ten-thousands digit, and so on. Any missing modes are 0.
+
+For example, consider the program 1002,4,3,4,33.
+
+The first instruction, 1002,4,3,4, is a multiply instruction - the rightmost two digits of the first value, 02, indicate opcode 2, multiplication. Then, going right to left, the parameter modes are 0 (hundreds digit), 1 (thousands digit), and 0 (ten-thousands digit, not present and therefore zero):
+
+ABCDE
+ 1002
+
+DE - two-digit opcode,      02 == opcode 2
+ C - mode of 1st parameter,  0 == position mode
+ B - mode of 2nd parameter,  1 == immediate mode
+ A - mode of 3rd parameter,  0 == position mode,
+                                  omitted due to being a leading zero
+
+This instruction multiplies its first two parameters. The first parameter, 4 in position mode, works like it did before - its value is the value stored at address 4 (33). The second parameter, 3 in immediate mode, simply has value 3. The result of this operation, 33 * 3 = 99, is written according to the third parameter, 4 in position mode, which also works like it did before - 99 is written to address 4.
 
 Parameters that an instruction writes to will never be in immediate mode.
 
@@ -60,6 +94,9 @@ This time, when the TEST diagnostic program runs its input instruction to get th
 
 What is the diagnostic code for system ID 5?
 
+Your puzzle answer was 4283952.
+
+That's the right answer! You are one gold star closer to rescuing Santa.
 */
 
 package main
@@ -83,6 +120,10 @@ const opSum = Operation(1)
 const opMultiply = Operation(2)
 const opSave = Operation(3)
 const opOutput = Operation(4)
+const opJumpIfTrue = Operation(5)
+const opJumpIfFalse = Operation(6)
+const opLessThan = Operation(7)
+const opEquals = Operation(8)
 
 const positionMode = ParamMode(0)
 const immediateMode = ParamMode(1)
@@ -97,6 +138,8 @@ func main() {
 	}
 	_, output := ExecAll(instructions, 1)
 	fmt.Printf("Answer 1: %d\n", output)
+	_, output = ExecAll(instructions, 5)
+	fmt.Printf("Answer 2: %d\n", output)
 }
 
 func IntToOpcode(op int) Opcode {
@@ -143,6 +186,44 @@ func execOpcode(pos int, instructions []int, inputTest int, output int) ([]int, 
 	case opOutput:
 		idx1 := getParam(instructions, pos+1, opcode.mode1)
 		return execOpcode(pos+2, instructions[:len(instructions)], inputTest, instructions[idx1])
+	case opJumpIfTrue:
+		idx1 := getParam(instructions, pos+1, opcode.mode1)
+		idx2 := getParam(instructions, pos+2, opcode.mode2)
+		if instructions[idx1] != 0 {
+			pos = instructions[idx2]
+		} else {
+			pos += 3
+		}
+		return execOpcode(pos, instructions[:len(instructions)], inputTest, output)
+	case opJumpIfFalse:
+		idx1 := getParam(instructions, pos+1, opcode.mode1)
+		idx2 := getParam(instructions, pos+2, opcode.mode2)
+		if instructions[idx1] == 0 {
+			pos = instructions[idx2]
+		} else {
+			pos += 3
+		}
+		return execOpcode(pos, instructions[:len(instructions)], inputTest, output)
+	case opLessThan:
+		idx1 := getParam(instructions, pos+1, opcode.mode1)
+		idx2 := getParam(instructions, pos+2, opcode.mode2)
+		idx3 := getParam(instructions, pos+3, positionMode)
+		var result int
+		if instructions[idx1] < instructions[idx2] {
+			result = 1
+		}
+		instructions[idx3] = result
+		return execOpcode(pos+4, instructions[:len(instructions)], inputTest, output)
+	case opEquals:
+		idx1 := getParam(instructions, pos+1, opcode.mode1)
+		idx2 := getParam(instructions, pos+2, opcode.mode2)
+		idx3 := getParam(instructions, pos+3, positionMode)
+		var result int
+		if instructions[idx1] == instructions[idx2] {
+			result = 1
+		}
+		instructions[idx3] = result
+		return execOpcode(pos+4, instructions[:len(instructions)], inputTest, output)
 	default:
 		return instructions, output
 	}
